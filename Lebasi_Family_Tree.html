@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lebasi Family Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0705;
+    color: #e8d5b0;
+    font-family: 'Crimson Text', serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 16px 24px;
+    background: linear-gradient(to bottom, rgba(10,7,5,0.98), transparent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    color: #c9a84c;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    color: #8a7a5a;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  .stats {
+    display: flex;
+    gap: 24px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    color: #8a7a5a;
+    letter-spacing: 1px;
+  }
+
+  .stats span { color: #c9a84c; }
+
+  #controls {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    gap: 8px;
+    background: rgba(20,15,10,0.9);
+    border: 1px solid #3a2e1e;
+    border-radius: 30px;
+    padding: 8px 16px;
+  }
+
+  .ctrl-btn {
+    background: none;
+    border: none;
+    color: #8a7a5a;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    transition: all 0.2s;
+  }
+
+  .ctrl-btn:hover { background: #2a1e10; color: #c9a84c; }
+
+  #search-box {
+    position: fixed;
+    top: 70px;
+    right: 24px;
+    z-index: 100;
+  }
+
+  #search {
+    background: rgba(20,15,10,0.9);
+    border: 1px solid #3a2e1e;
+    border-radius: 20px;
+    color: #e8d5b0;
+    font-family: 'Crimson Text', serif;
+    font-size: 1rem;
+    padding: 6px 16px;
+    outline: none;
+    width: 200px;
+    transition: border-color 0.2s;
+  }
+
+  #search:focus { border-color: #c9a84c; }
+  #search::placeholder { color: #5a4a3a; }
+
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 200;
+    background: rgba(15,10,5,0.97);
+    border: 1px solid #c9a84c;
+    border-radius: 4px;
+    padding: 12px 16px;
+    max-width: 240px;
+    display: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+  }
+
+  .tt-name {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    color: #c9a84c;
+    margin-bottom: 6px;
+  }
+
+  .tt-row {
+    font-size: 0.85rem;
+    color: #8a7a5a;
+    line-height: 1.6;
+  }
+
+  .tt-row span { color: #e8d5b0; }
+
+  #svg-container {
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .node circle {
+    stroke-width: 1.5;
+    transition: r 0.2s, filter 0.2s;
+    cursor: pointer;
+  }
+
+  .node circle:hover {
+    filter: brightness(1.4);
+  }
+
+  .node text {
+    font-family: 'Crimson Text', serif;
+    font-size: 11px;
+    fill: #e8d5b0;
+    pointer-events: none;
+    text-anchor: middle;
+  }
+
+  .node text.year {
+    font-size: 9px;
+    fill: #8a7a5a;
+  }
+
+  .link {
+    fill: none;
+    stroke: #3a2e1e;
+    stroke-width: 1;
+    opacity: 0.6;
+  }
+
+  .link.highlight { stroke: #c9a84c; stroke-width: 2; opacity: 1; }
+  .node.highlight circle { filter: brightness(1.8) drop-shadow(0 0 6px #c9a84c); }
+  .node.dimmed { opacity: 0.15; }
+
+  #legend {
+    position: fixed;
+    bottom: 70px;
+    left: 24px;
+    z-index: 100;
+    font-size: 0.75rem;
+    color: #5a4a3a;
+  }
+
+  .leg { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Lebasi Family Tree</h1>
+    <div class="subtitle">Roots of Eritrea · Est. 900 BC – Present</div>
+  </div>
+  <div class="stats">
+    INDIVIDUALS <span>203</span> &nbsp;·&nbsp; FAMILIES <span>71</span> &nbsp;·&nbsp; GENERATIONS <span>~30</span>
+  </div>
+</div>
+
+<div id="search-box">
+  <input id="search" type="text" placeholder="Search a name...">
+</div>
+
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-row">Born: <span id="tt-born"></span></div>
+  <div class="tt-row">Place: <span id="tt-place"></span></div>
+  <div class="tt-row" id="tt-death-row">Died: <span id="tt-died"></span></div>
+  <div class="tt-row" id="tt-sex-row">Sex: <span id="tt-sex"></span></div>
+</div>
+
+<svg id="svg-container"></svg>
+
+<div id="controls">
+  <button class="ctrl-btn" onclick="resetZoom()">⌂ Reset</button>
+  <button class="ctrl-btn" onclick="zoomIn()">+ Zoom In</button>
+  <button class="ctrl-btn" onclick="zoomOut()">− Zoom Out</button>
+  <button class="ctrl-btn" onclick="focusPaolos()">★ Focus: Paolos</button>
+</div>
+
+<div id="legend">
+  <div class="leg"><div class="leg-dot" style="background:#4a8fc4"></div> Male</div>
+  <div class="leg"><div class="leg-dot" style="background:#c46a8f"></div> Female</div>
+  <div class="leg"><div class="leg-dot" style="background:#7a6a4a"></div> Unknown</div>
+</div>
+
+<script>
+const DATA = {"individuals":{"I5":{"id":"I5","name":"Lebasi Genai","sex":"M","birth_date":"1 JAN 1800","birth_place":"1849","death_date":"","famc":"F32","fams":["F3"]},"I1":{"id":"I1","name":"Paolos Tewelde","sex":"M","birth_date":"12 DEC 1971","birth_place":"Mndefera, Eritrea","death_date":"","famc":"F1","fams":["F5"]},"I2":{"id":"I2","name":"Tewelde KIDANEMARIAM","sex":"M","birth_date":"26 APR 1933","birth_place":"Eritrea","death_date":"6 APR 2020","famc":"F2","fams":["F1","F18"]},"I3":{"id":"I3","name":"Gherima Haggos","sex":"F","birth_date":"1949","birth_place":"Tigray, Ethiopia","death_date":"","famc":"F4","fams":["F1","F20"]},"I4":{"id":"I4","name":"Kidanemariam LEBASI","sex":"M","birth_date":"1882","birth_place":"Eritrea","death_date":"","famc":"F3","fams":["F2"]},"I6":{"id":"I6","name":"Makdil Neguse","sex":"F","birth_date":"1892","birth_place":"","death_date":"","famc":"","fams":["F2"]},"I7":{"id":"I7","name":"Haggos","sex":"M","birth_date":"1879","birth_place":"Tigray, Ethiopia","death_date":"","famc":"","fams":["F4"]},"I8":{"id":"I8","name":"Sham Paolos K","sex":"M","birth_date":"2004","birth_place":"California, USA","death_date":"","famc":"F5","fams":[]},"I12":{"id":"I12","name":"Yaphet Paolos K","sex":"M","birth_date":"2006","birth_place":"","death_date":"","famc":"F5","fams":[]},"I15":{"id":"I15","name":"Eden Tsehaye","sex":"F","birth_date":"29 AUG 1979","birth_place":"Eritrea","death_date":"","famc":"F9","fams":["F5"]},"I16":{"id":"I16","name":"Tsahaye Ahferom","sex":"M","birth_date":"1942","birth_place":"Eritrea","death_date":"","famc":"F33","fams":["F9"]},"I17":{"id":"I17","name":"Herity Kahsay","sex":"F","birth_date":"1954","birth_place":"Eritrea","death_date":"","famc":"F21","fams":["F9"]},"I18":{"id":"I18","name":"Abbai Isaak LEBASI","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F3","fams":[]},"I19":{"id":"I19","name":"Amlezion LEBASI","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F3","fams":[]},"I20":{"id":"I20","name":"Kifleyesus LEBASI","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F3","fams":["F13"]},"I22":{"id":"I22","name":"Teklehaimanot LEBASI","sex":"M","birth_date":"1890","birth_place":"","death_date":"","famc":"F3","fams":["F12"]},"I24":{"id":"I24","name":"Lettai LEBASI","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F3","fams":["F15"]},"I25":{"id":"I25","name":"Sillas LEBASI","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F3","fams":["F14"]},"I27":{"id":"I27","name":"Iyasu KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F2","fams":[]},"I28":{"id":"I28","name":"Maricos KIDANEMARIAM","sex":"M","birth_date":"1924","birth_place":"Eritrea","death_date":"21 JUN 1974","famc":"F2","fams":["F25"]},"I29":{"id":"I29","name":"Araia KIDANEMARIAM","sex":"M","birth_date":"1935","birth_place":"","death_date":"","famc":"F2","fams":["F26","F27"]},"I30":{"id":"I30","name":"Saleh KIDANEMARIAM","sex":"M","birth_date":"1937","birth_place":"","death_date":"","famc":"F2","fams":[]},"I31":{"id":"I31","name":"Nighisty KIDANEMARIAM","sex":"F","birth_date":"1931","birth_place":"","death_date":"","famc":"F2","fams":["F28"]},"I32":{"id":"I32","name":"Zirha Ariam KIDANEMARIAM","sex":"F","birth_date":"1937","birth_place":"","death_date":"","famc":"F2","fams":["F29"]},"I33":{"id":"I33","name":"Lettekal KIDANEMARIAM","sex":"F","birth_date":"1939","birth_place":"","death_date":"","famc":"F2","fams":["F31"]},"I34":{"id":"I34","name":"Pietros Tewede","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F1","fams":["F16"]},"I35":{"id":"I35","name":"Makeda Paolos K","sex":"F","birth_date":"2008","birth_place":"","death_date":"","famc":"F5","fams":[]},"I36":{"id":"I36","name":"Tesfamariam TEKLEHAIMANOT","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F12","fams":[]},"I37":{"id":"I37","name":"Assefaw TEKLEHAIMANOT","sex":"M","birth_date":"1940","birth_place":"","death_date":"","famc":"F12","fams":[]},"I38":{"id":"I38","name":"Afwerky TEKLEHAIMANOT","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F12","fams":[]},"I39":{"id":"I39","name":"Abraham TEKLEHAIMANOT","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F12","fams":[]},"I40":{"id":"I40","name":"Ghebrekiros TEKLEHAIMANOT","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F12","fams":[]},"I41":{"id":"I41","name":"Lettenkiel TEKLEHAIMANOT","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F12","fams":[]},"I42":{"id":"I42","name":"Abrehet TEKLEHAIMANOT","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F12","fams":[]},"I43":{"id":"I43","name":"Hiwet KIFLEYESUS","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F13","fams":[]},"I44":{"id":"I44","name":"Ghidey KIFLEYESUS","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F13","fams":[]},"I45":{"id":"I45","name":"Gurmui KIFLEYESUS","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F13","fams":[]},"I46":{"id":"I46","name":"Kiflesellasie KIFLEYESUS","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F13","fams":[]},"I47":{"id":"I47","name":"Tesfayesus KIFLEYESUS","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F13","fams":[]},"I48":{"id":"I48","name":"Nuguse KIFLEYESUS","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F13","fams":[]},"I49":{"id":"I49","name":"HedegaSillas LEBASI","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F14","fams":[]},"I50":{"id":"I50","name":"Ghirmazion Lettai Lebasi","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F15","fams":[]},"I51":{"id":"I51","name":"Keshi Habtezion Lettai Lebasi","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F15","fams":[]},"I52":{"id":"I52","name":"Mahretab Lettai Lebasi","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F15","fams":[]},"I53":{"id":"I53","name":"Bereketab Lettai Lebasi","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F15","fams":[]},"I54":{"id":"I54","name":"Lettebraham Lettai Lebasi","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F15","fams":[]},"I55":{"id":"I55","name":"Lettensee Lettai Lebasi","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F15","fams":[]},"I56":{"id":"I56","name":"Brekti Lettai Lebasi","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F15","fams":[]},"I57":{"id":"I57","name":"Amleset Lettai Lebasi","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F15","fams":[]},"I58":{"id":"I58","name":"Saron Haile Segai","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F16","fams":[]},"I59":{"id":"I59","name":"Astier Segai","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F17","fams":["F16"]},"I60":{"id":"I60","name":"Segai","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F17"]},"I61":{"id":"I61","name":"Tedros Tewelde","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F1","fams":["F19"]},"I63":{"id":"I63","name":"Tirfe Ghedam","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F18"]},"I64":{"id":"I64","name":"Gina Fernando","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F19"]},"I65":{"id":"I65","name":"Aster Tewelde","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F18","fams":[]},"I66":{"id":"I66","name":"Ariam Tewelde","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F18","fams":[]},"I68":{"id":"I68","name":"Alex T Kidanemariam","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F19","fams":[]},"I69":{"id":"I69","name":"Allen T Kidanemariam","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F19","fams":[]},"I70":{"id":"I70","name":"Adam T Kidanemariam","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F19","fams":[]},"I71":{"id":"I71","name":"Baheta","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F20"]},"I72":{"id":"I72","name":"Medhanie Baheta","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F20","fams":["F24"]},"I73":{"id":"I73","name":"Kahsay Zere","sex":"M","birth_date":"1920","birth_place":"Eritrea","death_date":"","famc":"F68","fams":["F21"]},"I74":{"id":"I74","name":"Lemlem Kuflu","sex":"F","birth_date":"1949","birth_place":"Eritrea","death_date":"","famc":"F71","fams":["F21"]},"I76":{"id":"I76","name":"Ruth Tewelde","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F18","fams":["F24"]},"I77":{"id":"I77","name":"Olivia Baheta","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F24","fams":[]},"I78":{"id":"I78","name":"Iyasu Baheta","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F24","fams":[]},"I79":{"id":"I79","name":"Ainom Maricos","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F25","fams":[]},"I80":{"id":"I80","name":"kidanemariam","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F25","fams":[]},"I81":{"id":"I81","name":"Yemane Maricos","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F25","fams":[]},"I82":{"id":"I82","name":"Azazi Maricos","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F25","fams":[]},"I83":{"id":"I83","name":"Berhane Maricos","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F25","fams":[]},"I84":{"id":"I84","name":"Aklilu Maricos","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F25","fams":[]},"I85":{"id":"I85","name":"Michele Maricos","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F25","fams":[]},"I86":{"id":"I86","name":"Yohaness Maricos","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F25","fams":[]},"I87":{"id":"I87","name":"Leghesa Woldegerghish","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F25"]},"I88":{"id":"I88","name":"Zigeweini Araia KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F26","fams":[]},"I89":{"id":"I89","name":"Hiwan Araia KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F26","fams":[]},"I90":{"id":"I90","name":"Ghidowen Araia KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F26","fams":[]},"I92":{"id":"I92","name":"Ghidey Habtemariam","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F66","fams":["F27"]},"I94":{"id":"I94","name":"Skinder Araia KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F27","fams":[]},"I95":{"id":"I95","name":"Harnet Araia KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F27","fams":[]},"I96":{"id":"I96","name":"Sare Araia KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F27","fams":[]},"I97":{"id":"I97","name":"Daniele KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F27","fams":[]},"I98":{"id":"I98","name":"Jonas Araia KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F27","fams":[]},"I99":{"id":"I99","name":"Zewdi Nighisty KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F28","fams":[]},"I100":{"id":"I100","name":"Hailesellasie Nighisty KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F28","fams":[]},"I101":{"id":"I101","name":"Okbe Nighisty KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F28","fams":[]},"I102":{"id":"I102","name":"Hadgembes Nighisty KIDANEMARIAM Hadghembes","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F28","fams":[]},"I104":{"id":"I104","name":"Rezene Zirha KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I105":{"id":"I105","name":"Fissahaye Zirha KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I106":{"id":"I106","name":"Abeba Zirha KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I107":{"id":"I107","name":"Mebrat Zirha KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I108":{"id":"I108","name":"Berhane Zirha KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I109":{"id":"I109","name":"Mebrahtu Zirha KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I110":{"id":"I110","name":"Mesfun Zirha KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I111":{"id":"I111","name":"Asmeret Zirha KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I112":{"id":"I112","name":"Asfhalle Zirha KIDANEMARIAM","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F29","fams":[]},"I114":{"id":"I114","name":"Birinesh Lettekal KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F31","fams":[]},"I115":{"id":"I115","name":"GhideyLettekal KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F31","fams":[]},"I116":{"id":"I116","name":"Zifan Lettekal KIDANEMARIAM","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"F31","fams":[]},"I117":{"id":"I117","name":"Genai Nezerab","sex":"M","birth_date":"1790","birth_place":"","death_date":"","famc":"F36","fams":["F32"]},"I118":{"id":"I118","name":"Ahferom Zerufael","sex":"M","birth_date":"1900","birth_place":"Eritrea","death_date":"","famc":"F74","fams":["F33"]},"I119":{"id":"I119","name":"Abeba Weldesellase","sex":"F","birth_date":"1900","birth_place":"Eritrea","death_date":"","famc":"F76","fams":["F33"]},"I120":{"id":"I120","name":"Solomonye","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F3"]},"I123":{"id":"I123","name":"Abraha Ocbamichael Adgoi","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F34","fams":["F29"]},"I124":{"id":"I124","name":"Ocbamichael Adgoi","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F34"]},"I127":{"id":"I127","name":"Nezerab Kunfu","sex":"M","birth_date":"1782","birth_place":"","death_date":"","famc":"F37","fams":["F36"]},"I133":{"id":"I133","name":"Kunfu Azazi","sex":"M","birth_date":"1750","birth_place":"","death_date":"","famc":"F38","fams":["F37"]},"I134":{"id":"I134","name":"Azazi Tekusulus","sex":"M","birth_date":"1744","birth_place":"","death_date":"","famc":"F39","fams":["F38"]},"I136":{"id":"I136","name":"Tekusulus Tesfazion","sex":"M","birth_date":"1733","birth_place":"","death_date":"","famc":"F40","fams":["F39"]},"I138":{"id":"I138","name":"Tesfazion Hargechiougar","sex":"M","birth_date":"1700","birth_place":"","death_date":"","famc":"F41","fams":["F40"]},"I140":{"id":"I140","name":"Hargechiougar Tesfazion 1ST","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F42","fams":["F41"]},"I142":{"id":"I142","name":"Tesfazion Sipehat","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F43","fams":["F42"]},"I144":{"id":"I144","name":"Sipehat Gheprekhristos","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F44","fams":["F43"]},"I146":{"id":"I146","name":"Gheprekhristos Agazi","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F45","fams":["F44"]},"I148":{"id":"I148","name":"Agazi Tesfa 2nd","sex":"M","birth_date":"1600","birth_place":"","death_date":"","famc":"F46","fams":["F45"]},"I150":{"id":"I150","name":"Tesfa Ghepruserkepham","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F47","fams":["F46"]},"I152":{"id":"I152","name":"Ghepruserkepham Tesfa 1st","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F48","fams":["F47"]},"I154":{"id":"I154","name":"Tesfa 1st Begazion","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F49","fams":["F48"]},"I156":{"id":"I156","name":"Begazion Ruzbilensegheda","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F50","fams":["F49"]},"I158":{"id":"I158","name":"Ruzbilensegheda Silezion","sex":"M","birth_date":"UNKNOWN","birth_place":"","death_date":"","famc":"F51","fams":["F50"]},"I160":{"id":"I160","name":"Silezion Adkeme 1st","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"F52","fams":["F51"]},"I162":{"id":"I162","name":"Adkeme Akelezion","sex":"M","birth_date":"1500","birth_place":"","death_date":"","famc":"F53","fams":["F52"]},"I164":{"id":"I164","name":"Akelezion Astenad","sex":"M","birth_date":"1490","birth_place":"Eritrea","death_date":"","famc":"F54","fams":["F53"]},"I166":{"id":"I166","name":"Astenad Sepremanka","sex":"M","birth_date":"1480","birth_place":"Eritrea","death_date":"","famc":"F55","fams":["F54"]},"I168":{"id":"I168","name":"Sepremanka Elfidem","sex":"M","birth_date":"1470","birth_place":"Eritrea","death_date":"","famc":"F56","fams":["F55"]},"I170":{"id":"I170","name":"Efidem Serpidem","sex":"M","birth_date":"1460","birth_place":"Eritrea","death_date":"","famc":"F57","fams":["F56"]},"I172":{"id":"I172","name":"Serpidem Geghedela","sex":"M","birth_date":"1420","birth_place":"Eritrea","death_date":"","famc":"F58","fams":["F57"]},"I174":{"id":"I174","name":"Geghedela Anbesager","sex":"M","birth_date":"1400","birth_place":"Eritrea","death_date":"","famc":"F59","fams":["F58"]},"I176":{"id":"I176","name":"Anbesager Gheremariam","sex":"M","birth_date":"1300","birth_place":"Eritrea","death_date":"","famc":"F60","fams":["F59"]},"I178":{"id":"I178","name":"Gheremariam Yetbarek","sex":"M","birth_date":"1280","birth_place":"Eritrea","death_date":"","famc":"F61","fams":["F60"]},"I180":{"id":"I180","name":"Yetbarek Lalibela","sex":"M","birth_date":"1260","birth_place":"","death_date":"","famc":"F62","fams":["F61"]},"I182":{"id":"I182","name":"Lalibela Giansiyom","sex":"M","birth_date":"1162","birth_place":"Eritrea","death_date":"1221","famc":"F81","fams":["F62"]},"I183":{"id":"I183","name":"Kebra Meskel","sex":"F","birth_date":"1133","birth_place":"Eritrea","death_date":"","famc":"","fams":["F62"]},"I186":{"id":"I186","name":"Tataudem Teklehaimanot","sex":"M","birth_date":"1100","birth_place":"Eritrea","death_date":"","famc":"F65","fams":[]},"I189":{"id":"I189","name":"Masaba Warq","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F65"]},"I190":{"id":"I190","name":"Habtemariam","sex":"M","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F66"]},"I191":{"id":"I191","name":"Kebrah","sex":"F","birth_date":"","birth_place":"","death_date":"","famc":"","fams":["F66"]},"I193":{"id":"I193","name":"Eglah","sex":"F","birth_date":"900 BC","birth_place":"Israel","death_date":"","famc":"","fams":["F67"]},"I194":{"id":"I194","name":"Zere Fret","sex":"M","birth_date":"1890","birth_place":"Eritrea","death_date":"","famc":"F69","fams":["F68"]},"I195":{"id":"I195","name":"Fret Kurtut","sex":"M","birth_date":"1850","birth_place":"Eritrea","death_date":"","famc":"","fams":["F69"]},"I200":{"id":"I200","name":"Kuflu","sex":"M","birth_date":"1900","birth_place":"Eritrea","death_date":"","famc":"F72","fams":["F71"]},"I201":{"id":"I201","name":"Kuflu Nedel","sex":"M","birth_date":"1850","birth_place":"Eritrea","death_date":"","famc":"","fams":["F72"]},"I202":{"id":"I202","name":"Timnit Mennamero","sex":"F","birth_date":"1908","birth_place":"Eritrea","death_date":"","famc":"F73","fams":["F71"]},"I203":{"id":"I203","name":"Tesfai","sex":"M","birth_date":"1840","birth_place":"Eritrea","death_date":"","famc":"","fams":["F73"]},"I206":{"id":"I206","name":"Zurafael Ukbat","sex":"M","birth_date":"1889","birth_place":"Eritrea","death_date":"","famc":"F75","fams":["F74"]},"I207":{"id":"I207","name":"Ukbet Woldeghebrie","sex":"M","birth_date":"1859","birth_place":"Eritrea","death_date":"","famc":"","fams":["F75"]},"I209":{"id":"I209","name":"Weldesellase Woldehailu","sex":"M","birth_date":"1890","birth_place":"Eritrea","death_date":"","famc":"F78","fams":["F76"]},"I214":{"id":"I214","name":"Woldehailu","sex":"M","birth_date":"1839","birth_place":"Eritrea","death_date":"","famc":"","fams":["F78"]},"I220":{"id":"I220","name":"Giansiyom Teklehaimanot","sex":"M","birth_date":"1140","birth_place":"Eritrea","death_date":"","famc":"F65","fams":["F81"]},"I223":{"id":"I223","name":"Negus Mara Teklehaimanot","sex":"M","birth_date":"1080","birth_place":"Eritrea","death_date":"","famc":"F80","fams":["F65"]},"I224":{"id":"I224","name":"ITHREAM","sex":"M","birth_date":"900 BC","birth_place":"Israel","death_date":"","famc":"","fams":["F67","F80"]},"I225":{"id":"I225","name":"EGLAH","sex":"F","birth_date":"900 BC","birth_place":"Eritrea","death_date":"","famc":"","fams":["F80"]}},"families":{"F1":{"id":"F1","husband":"I2","wife":"I3","children":["I1","I34","I61"],"marriage_date":""},"F2":{"id":"F2","husband":"I4","wife":"I6","children":["I2","I28","I29","I30","I31","I32","I33","I27"],"marriage_date":""},"F3":{"id":"F3","husband":"I5","wife":"I120","children":["I4","I22","I18","I19","I20","I24","I25"],"marriage_date":""},"F4":{"id":"F4","husband":"I7","wife":"","children":["I3"],"marriage_date":""},"F5":{"id":"F5","husband":"I1","wife":"I15","children":["I8","I12","I35"],"marriage_date":"17 JUL 2004"},"F9":{"id":"F9","husband":"I16","wife":"I17","children":["I15"],"marriage_date":""},"F12":{"id":"F12","husband":"I22","wife":"","children":["I37","I36","I38","I39","I40","I41","I42"],"marriage_date":""},"F13":{"id":"F13","husband":"I20","wife":"","children":["I43","I44","I45","I46","I47","I48"],"marriage_date":""},"F14":{"id":"F14","husband":"","wife":"I25","children":["I49"],"marriage_date":""},"F15":{"id":"F15","husband":"","wife":"I24","children":["I50","I51","I52","I53","I54","I55","I56","I57"],"marriage_date":""},"F16":{"id":"F16","husband":"I34","wife":"I59","children":["I58"],"marriage_date":""},"F17":{"id":"F17","husband":"I60","wife":"","children":["I59"],"marriage_date":""},"F18":{"id":"F18","husband":"I2","wife":"I63","children":["I65","I66","I76"],"marriage_date":""},"F19":{"id":"F19","husband":"I61","wife":"I64","children":["I68","I69","I70"],"marriage_date":""},"F20":{"id":"F20","husband":"I71","wife":"I3","children":["I72"],"marriage_date":""},"F21":{"id":"F21","husband":"I73","wife":"I74","children":["I17"],"marriage_date":""},"F24":{"id":"F24","husband":"I72","wife":"I76","children":["I77","I78"],"marriage_date":""},"F25":{"id":"F25","husband":"I28","wife":"I87","children":["I79","I80","I81","I82","I83","I84","I85","I86"],"marriage_date":""},"F26":{"id":"F26","husband":"I29","wife":"","children":["I88","I89","I90"],"marriage_date":""},"F27":{"id":"F27","husband":"I29","wife":"I92","children":["I94","I95","I96","I97","I98"],"marriage_date":""},"F28":{"id":"F28","husband":"","wife":"I31","children":["I99","I100","I101","I102"],"marriage_date":""},"F29":{"id":"F29","husband":"I123","wife":"I32","children":["I104","I105","I106","I107","I108","I109","I110","I111","I112"],"marriage_date":""},"F31":{"id":"F31","husband":"","wife":"I33","children":["I114","I115","I116"],"marriage_date":""},"F32":{"id":"F32","husband":"I117","wife":"","children":["I5"],"marriage_date":""},"F33":{"id":"F33","husband":"I118","wife":"I119","children":["I16"],"marriage_date":""},"F34":{"id":"F34","husband":"I124","wife":"","children":["I123"],"marriage_date":""},"F36":{"id":"F36","husband":"I127","wife":"","children":["I117"],"marriage_date":""},"F37":{"id":"F37","husband":"I133","wife":"","children":["I127"],"marriage_date":""},"F38":{"id":"F38","husband":"I134","wife":"","children":["I133"],"marriage_date":""},"F39":{"id":"F39","husband":"I136","wife":"","children":["I134"],"marriage_date":""},"F40":{"id":"F40","husband":"I138","wife":"","children":["I136"],"marriage_date":""},"F41":{"id":"F41","husband":"I140","wife":"","children":["I138"],"marriage_date":""},"F42":{"id":"F42","husband":"I142","wife":"","children":["I140"],"marriage_date":""},"F43":{"id":"F43","husband":"I144","wife":"","children":["I142"],"marriage_date":""},"F44":{"id":"F44","husband":"I146","wife":"","children":["I144"],"marriage_date":""},"F45":{"id":"F45","husband":"I148","wife":"","children":["I146"],"marriage_date":""},"F46":{"id":"F46","husband":"I150","wife":"","children":["I148"],"marriage_date":""},"F47":{"id":"F47","husband":"I152","wife":"","children":["I150"],"marriage_date":""},"F48":{"id":"F48","husband":"I154","wife":"","children":["I152"],"marriage_date":""},"F49":{"id":"F49","husband":"I156","wife":"","children":["I154"],"marriage_date":""},"F50":{"id":"F50","husband":"I158","wife":"","children":["I156"],"marriage_date":""},"F51":{"id":"F51","husband":"I160","wife":"","children":["I158"],"marriage_date":""},"F52":{"id":"F52","husband":"I162","wife":"","children":["I160"],"marriage_date":""},"F53":{"id":"F53","husband":"I164","wife":"","children":["I162"],"marriage_date":""},"F54":{"id":"F54","husband":"I166","wife":"","children":["I164"],"marriage_date":""},"F55":{"id":"F55","husband":"I168","wife":"","children":["I166"],"marriage_date":""},"F56":{"id":"F56","husband":"I170","wife":"","children":["I168"],"marriage_date":""},"F57":{"id":"F57","husband":"I172","wife":"","children":["I170"],"marriage_date":""},"F58":{"id":"F58","husband":"I174","wife":"","children":["I172"],"marriage_date":""},"F59":{"id":"F59","husband":"I176","wife":"","children":["I174"],"marriage_date":""},"F60":{"id":"F60","husband":"I178","wife":"","children":["I176"],"marriage_date":""},"F61":{"id":"F61","husband":"I180","wife":"","children":["I178"],"marriage_date":""},"F62":{"id":"F62","husband":"I182","wife":"I183","children":["I180"],"marriage_date":""},"F63":{"id":"F63","husband":"","wife":"","children":["I182"],"marriage_date":""},"F65":{"id":"F65","husband":"I223","wife":"I189","children":["I186","I220"],"marriage_date":""},"F66":{"id":"F66","husband":"I190","wife":"I191","children":["I92"],"marriage_date":""},"F67":{"id":"F67","husband":"I224","wife":"I193","children":[],"marriage_date":""},"F68":{"id":"F68","husband":"I194","wife":"","children":["I73"],"marriage_date":""},"F69":{"id":"F69","husband":"I195","wife":"","children":["I194"],"marriage_date":""},"F71":{"id":"F71","husband":"I200","wife":"I202","children":["I74"],"marriage_date":""},"F72":{"id":"F72","husband":"I201","wife":"","children":["I200"],"marriage_date":""},"F73":{"id":"F73","husband":"I203","wife":"","children":["I202"],"marriage_date":""},"F74":{"id":"F74","husband":"I206","wife":"","children":["I118"],"marriage_date":""},"F75":{"id":"F75","husband":"I207","wife":"","children":["I206"],"marriage_date":""},"F76":{"id":"F76","husband":"I209","wife":"I208","children":["I119"],"marriage_date":""},"F78":{"id":"F78","husband":"I214","wife":"","children":["I209"],"marriage_date":""},"F80":{"id":"F80","husband":"I224","wife":"I225","children":["I223"],"marriage_date":""},"F81":{"id":"F81","husband":"I220","wife":"","children":["I182"],"marriage_date":""}}};
+
+// Build nodes and links
+const nodes = [];
+const links = [];
+const nodeMap = {};
+
+// Filter out unnamed/unknown
+const validIds = new Set(Object.keys(DATA.individuals).filter(id => {
+  const n = DATA.individuals[id].name;
+  return n && n !== '?' && n !== '----' && n !== '-----';
+}));
+
+validIds.forEach(id => {
+  const p = DATA.individuals[id];
+  const node = { id, ...p };
+  nodes.push(node);
+  nodeMap[id] = node;
+});
+
+Object.values(DATA.families).forEach(fam => {
+  const parentId = fam.husband || fam.wife;
+  if (!parentId || !validIds.has(parentId)) return;
+  fam.children.forEach(childId => {
+    if (validIds.has(childId)) {
+      links.push({ source: parentId, target: childId });
+    }
+  });
+  if (fam.husband && fam.wife && validIds.has(fam.husband) && validIds.has(fam.wife)) {
+    links.push({ source: fam.husband, target: fam.wife, type: 'spouse' });
+  }
+});
+
+const svg = d3.select('#svg-container');
+const W = window.innerWidth, H = window.innerHeight;
+svg.attr('width', W).attr('height', H);
+
+const g = svg.append('g');
+
+const zoom = d3.zoom().scaleExtent([0.05, 3]).on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoom);
+
+const colorM = '#4a8fc4', colorF = '#c46a8f', colorU = '#7a6a4a';
+const getColor = d => d.sex === 'M' ? colorM : d.sex === 'F' ? colorF : colorU;
+
+const sim = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d => d.id).distance(d => d.type === 'spouse' ? 40 : 70).strength(d => d.type === 'spouse' ? 0.8 : 0.5))
+  .force('charge', d3.forceManyBody().strength(-120))
+  .force('center', d3.forceCenter(W/2, H/2))
+  .force('collision', d3.forceCollide(22));
+
+const link = g.append('g').selectAll('line')
+  .data(links).join('line')
+  .attr('class', 'link')
+  .attr('stroke-dasharray', d => d.type === 'spouse' ? '3,3' : null);
+
+const node = g.append('g').selectAll('g')
+  .data(nodes).join('g')
+  .attr('class', 'node')
+  .call(d3.drag()
+    .on('start', (e,d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+    .on('drag', (e,d) => { d.fx=e.x; d.fy=e.y; })
+    .on('end', (e,d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+node.append('circle')
+  .attr('r', d => d.id === 'I1' ? 12 : 8)
+  .attr('fill', d => getColor(d))
+  .attr('fill-opacity', 0.85)
+  .attr('stroke', d => d.id === 'I1' ? '#c9a84c' : d3.color(getColor(d)).brighter(0.5))
+  .attr('stroke-width', d => d.id === 'I1' ? 2.5 : 1);
+
+node.append('text')
+  .attr('dy', 20)
+  .text(d => {
+    const parts = d.name.split(' ');
+    return parts[0].length > 10 ? parts[0].substring(0,9)+'…' : parts[0];
+  });
+
+node.append('text')
+  .attr('class', 'year')
+  .attr('dy', 30)
+  .text(d => d.birth_date ? d.birth_date.replace(/[A-Z]{3,}\s/,'').substring(0,4) : '');
+
+// Tooltip
+const tt = document.getElementById('tooltip');
+node.on('mouseover', (e, d) => {
+  document.getElementById('tt-name').textContent = d.name;
+  document.getElementById('tt-born').textContent = d.birth_date || '—';
+  document.getElementById('tt-place').textContent = d.birth_place || '—';
+  document.getElementById('tt-died').textContent = d.death_date || '—';
+  document.getElementById('tt-sex').textContent = d.sex === 'M' ? 'Male' : d.sex === 'F' ? 'Female' : '—';
+  tt.style.display = 'block';
+  tt.style.left = (e.clientX + 12) + 'px';
+  tt.style.top = (e.clientY - 10) + 'px';
+})
+.on('mousemove', e => {
+  tt.style.left = (e.clientX + 12) + 'px';
+  tt.style.top = (e.clientY - 10) + 'px';
+})
+.on('mouseout', () => { tt.style.display = 'none'; });
+
+sim.on('tick', () => {
+  link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  node.attr('transform', d => `translate(${d.x},${d.y})`);
+});
+
+// Search
+document.getElementById('search').addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  if (!q) {
+    node.classed('dimmed', false).classed('highlight', false);
+    link.classed('highlight', false);
+    return;
+  }
+  const matches = new Set(nodes.filter(n => n.name.toLowerCase().includes(q)).map(n => n.id));
+  node.classed('highlight', d => matches.has(d.id));
+  node.classed('dimmed', d => !matches.has(d.id));
+});
+
+// Controls
+function resetZoom() { svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(W/2, H/2).scale(0.6)); }
+function zoomIn() { svg.transition().duration(300).call(zoom.scaleBy, 1.4); }
+function zoomOut() { svg.transition().duration(300).call(zoom.scaleBy, 0.7); }
+function focusPaolos() {
+  const p = nodes.find(n => n.id === 'I1');
+  if (!p) return;
+  svg.transition().duration(800).call(zoom.transform,
+    d3.zoomIdentity.translate(W/2 - p.x * 1.5, H/2 - p.y * 1.5).scale(1.5));
+}
+
+// Initial zoom
+setTimeout(() => resetZoom(), 500);
+</script>
+</body>
+</html>
